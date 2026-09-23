@@ -1,61 +1,68 @@
-# FBME-SBL：算法代码
+# FBME-SBL
 
 Fourier-structured sparse Bayesian learning in PyTorch, with FBME-Fast,
 FBME-Stable, and independent implementations of selected SBL methods.
 
-本仓库提供本项目的 FBME-SBL 求解器、CUDA Graph 执行入口，以及部分 SBL 方法的独立复现代码。仅包含算法及安装、调用和来源说明，不包含数据集、数据生成器、实验脚本、计时结果、论文或项目记忆。算法数值主体保留原实现。
+This repository contains the FBME-SBL solvers, CUDA Graph execution wrappers, and independent implementations of selected SBL methods. It includes installation, usage, and source documentation, together with an archived RTX 4090 example for regenerating the reported Table 2 and Fig. 3 from saved results. It does not include manuscripts, internal project records, or the complete original experimental environment. The numerical solver implementations are preserved from the project code.
 
-## 包含的方法
+## Available methods
 
-| 方法 | 调用入口 | 当前实现的执行条件 |
+| Method | Entry point | Execution requirements |
 |---|---|---|
-| FBME-Fast | `torch_sbl_fastest_stable.make_fastest_plan` | CUDA、complex64、Triton、固定形状 CUDA Graph |
-| FBME-Stable | `torch_sbl_fastest_stable.make_stable_plan` | CUDA、complex64、Triton、固定形状 CUDA Graph |
-| FBME 通用求解入口 | `torch_sbl.sbl_2d` / `fast_sbl` | 由 `SBLConfig` 指定计算与执行方式 |
-| Dense EM-SBL | `literature_reproduction.dense_em_sbl` | PyTorch；输入张量所在的 CPU 或 CUDA 设备 |
-| UAMP-SBL（论文更新式） | `literature_reproduction.paper_uamp_sbl` | 当前入口要求 CUDA，单场景 |
-| UAMP（工程版本） | `literature_reproduction.uamp_sbl` | `backend="torch"` 或 `"triton"`；后者要求 CUDA/Triton |
-| CoFEM（复数 Fourier 适配） | `literature_reproduction.complex_fourier_cofem` | 当前入口要求 CUDA，需提供噪声方差 |
-| GGAMP-SBL（复数适配） | `literature_reproduction.ggamp_sbl` | PyTorch；需提供噪声方差 |
-| 2D-AFCIFSBL（部分 Fourier 适配） | `literature_reproduction.afcifsbl_2d` | PyTorch，二维单场景 |
+| FBME-Fast | `torch_sbl_fastest_stable.make_fastest_plan` | CUDA, complex64, Triton, fixed-shape CUDA Graph |
+| FBME-Stable | `torch_sbl_fastest_stable.make_stable_plan` | CUDA, complex64, Triton, fixed-shape CUDA Graph |
+| General FBME solver | `torch_sbl.sbl_2d` / `fast_sbl` | Computation and execution configured through `SBLConfig` |
+| Dense EM-SBL | `literature_reproduction.dense_em_sbl` | PyTorch on the input tensor's CPU or CUDA device |
+| UAMP-SBL (paper updates) | `literature_reproduction.paper_uamp_sbl` | CUDA; a single scene |
+| UAMP (engineering variant) | `literature_reproduction.uamp_sbl` | `backend="torch"` or `"triton"`; the latter requires CUDA and Triton |
+| CoFEM (complex Fourier adaptation) | `literature_reproduction.complex_fourier_cofem` | CUDA; a noise variance supplied by the caller |
+| GGAMP-SBL (complex adaptation) | `literature_reproduction.ggamp_sbl` | PyTorch; a noise variance supplied by the caller |
+| 2D-AFCIFSBL (partial Fourier adaptation) | `literature_reproduction.afcifsbl_2d` | PyTorch; a single two-dimensional scene |
 
-Dense 的 CPU/GPU 路径共用同一实现；工程 UAMP 的 Torch/Triton 路径也不是两种独立文献方法。这里没有 FFD-SBL 的独立实现。文献复现与原论文的差异见[来源与引用](来源与引用.md)。
+Dense EM uses the same implementation on CPU and GPU. Likewise, the Torch and Triton paths of the engineering UAMP variant are execution options, not separate methods from the literature. This repository does not contain an independent FFD-SBL implementation. See [Sources and citations](SOURCES.md) for differences between these implementations and the cited methods.
 
-## 安装
+## Installation
 
-Python 3.10 或以上。依赖范围围绕项目使用的 PyTorch 2.6 / Triton 3.2 设置；推荐 Linux 或 WSL2 使用 CUDA 路径。先按 [PyTorch 官方说明](https://pytorch.org/get-started/previous-versions/) 安装匹配本机驱动的 PyTorch 2.6.0；需要 Fast/Stable 时应安装 CUDA 版本。
+Python 3.10 or later is required. Dependency ranges follow the project's PyTorch 2.6 and Triton 3.2 environment. Linux or WSL2 is recommended for CUDA execution. First install PyTorch 2.6.0 with a build compatible with your driver, following the [official PyTorch instructions](https://pytorch.org/get-started/previous-versions/). Fast and Stable require a CUDA-enabled build.
 
-在解压后的仓库根目录运行：
+Clone the repository:
+
+```bash
+git clone https://github.com/shabomarui-hub/FBME-SBL.git
+cd FBME-SBL
+```
+
+From the repository root, install the package:
 
 ```bash
 python -m pip install .
 ```
 
-需要 Fast/Stable 或 Triton 工程 UAMP 时：
+For Fast, Stable, or the Triton UAMP variant, install the optional Triton dependency:
 
 ```bash
 python -m pip install ".[triton]"
 ```
 
-Windows 原生额外依赖使用 `triton-windows`；该安装选项不代表已经验证所有 Windows 原生驱动组合。仅有 CPU 时可使用 Dense 等入口，不能运行 Fast/Stable。项目自身不需要 NumPy、SciPy 或数据集依赖来导入这些算法包。
+On native Windows, this optional dependency uses `triton-windows`. Providing that installation option does not mean that all native Windows driver combinations have been validated. CPU-only systems can use methods such as Dense EM, but cannot run Fast or Stable. The algorithm packages do not require NumPy, SciPy, or dataset packages to import.
 
-可用以下命令确认安装与导出入口，不会执行求解器：
+The following command checks installation and package exports without running a solver:
 
 ```bash
 python -c "import torch_sbl, torch_sbl_fastest_stable, literature_reproduction; print(torch_sbl.__version__)"
 ```
 
-## 输入的含义
+## Input model
 
-- 二维单场景输入 `data` 是复数观测张量 `[M1, M2]`；重构网格由 `grid_shape=(N1, N2)` 指定，满足 `0 < Mi <= Ni`。
-- 默认模型使用**未归一化二维 DFT 的前缀观测块**：`data = fft2(x)[:M1, :M2] + noise`。DFT 顺序、幅度和相位约定必须一致；不要直接把灰度图、幅度图或任意雷达原始文件当作这里的复数观测输入。
-- `complex64` 指每个复数由两个 float32 表示，与网格大小不同。Fast/Stable 固定使用 complex64；其他接口的支持范围见源码。
-- 通用 `sbl_2d` 支持批量输入和部分掩码配置；文献入口的批量/掩码能力不同，不能假定同一接口全部兼容。
-- CoFEM/GGAMP 所需的 `noise_variance` 指与观测幅度尺度一致的复数噪声功率 `E[|noise|²]`，由调用方提供或估计；不要把 dB 数值直接传入。
+- For a single two-dimensional scene, `data` is a complex observation tensor of shape `[M1, M2]`. The reconstruction grid is specified by `grid_shape=(N1, N2)`, with `0 < Mi <= Ni`.
+- The default model uses a **prefix observation block of the unnormalized two-dimensional DFT**: `data = fft2(x)[:M1, :M2] + noise`. DFT ordering, amplitude scaling, and phase conventions must agree. A grayscale image, magnitude image, or arbitrary raw radar file is not a direct substitute for these complex observations.
+- `complex64` represents each complex value using two float32 components; it does not specify the grid size. Fast and Stable require complex64. Other interfaces may support different types; see their source code.
+- The general `sbl_2d` interface supports batched input and some mask configurations. Batching and mask support differ across the literature implementations, so their interfaces are not interchangeable in every configuration.
+- For CoFEM and GGAMP, `noise_variance` is the complex noise power `E[|noise|²]`, in the same amplitude scale as the observations. The caller must supply or estimate it; do not pass an SNR value in decibels directly.
 
-## FBME-Fast 与 FBME-Stable
+## FBME-Fast and FBME-Stable
 
-下面的函数接收调用方已经准备好的观测，不加载或生成数据：
+The following functions accept observations prepared by the caller. They do not load or generate data.
 
 ```python
 import torch
@@ -77,20 +84,20 @@ def reconstruct_pair(fast_plan, stable_plan, data):
     return fast_x, stable_x
 ```
 
-计划构建包含预热和 CUDA Graph 捕获；后续复用计划的输入形状、dtype、设备和网格必须保持不变。`replay()` 默认异步提交；需要显式等待时使用 `synchronize=True`。同一个计划不应被多个并发调用共享。返回的后验状态也由计划持有，需要跨下次调用保存时逐字段复制。
+Plan construction includes warm-up and CUDA Graph capture. To reuse a plan, keep the input shape, dtype, device, and reconstruction grid unchanged. By default, `replay()` submits work asynchronously; use `synchronize=True` when an explicit wait is needed. Do not share one plan between concurrent calls. The plan also owns the returned posterior state; copy the fields you need to retain before the next call.
 
-两种默认配置的区别：
+The default configurations differ as follows:
 
-| 配置 | 活动集容量 `polish_size` | 活动集评估次数 | 残差候选交换数 | 固定预算诊断 |
+| Configuration | Active-set capacity (`polish_size`) | Active-set evaluations | Residual candidate exchanges | Fixed-budget diagnostics |
 |---|---:|---:|---:|---|
-| FBME-Fast | 32 | 2 | 0 | 关闭 |
-| FBME-Stable | 32 | 3 | 12 | 开启 |
+| FBME-Fast | 32 | 2 | 0 | Disabled |
+| FBME-Stable | 32 | 3 | 12 | Enabled |
 
-`polish_size` 可由调用方指定，默认值保持 32；它是活动集容量，不是真实目标个数，也不表示增大后必然更准确。Fast/Stable 是固定预算配置，名称不构成任意输入下的质量、收敛或全局最优保证。`SBLResult` 中提供重构、后验及相应诊断；具体字段以源码为准。
+The caller can set `polish_size`; its default remains 32. This is the active-set capacity, not the true number of targets, and increasing it does not necessarily improve accuracy. Fast and Stable are fixed-budget configurations. Their names do not guarantee reconstruction quality, convergence, or global optimality for arbitrary input. `SBLResult` provides the reconstruction, posterior information, and applicable diagnostics; see the source for the exact fields.
 
-## 文献方法调用
+## Calling the literature implementations
 
-以下示例同样由调用方传入已有的 CUDA complex64 单场景观测和噪声方差；各方法保留自己的参数和更新预算：
+The following example also expects existing CUDA complex64 observations for a single scene and a noise variance supplied by the caller. Each method retains its own parameters and update budget.
 
 ```python
 from literature_reproduction import (
@@ -119,19 +126,28 @@ def reconstruct_with_method(name, data, grid_shape, noise_variance):
     raise ValueError(f"Unknown method: {name}")
 ```
 
-各结果对象的 `.x` 是重构；本例二维单场景入口均返回 `[N1, N2]`。GGAMP 在批量数大于 1 时保留批量维，批量数为 1 时会去掉该维；其噪声方差参数只接受标量或单元素张量。不要依赖所有后验字段名称和形状完全相同。GGAMP 的 `mean_remove=True` 未实现，必须使用 `False`；默认 `noise_scale=3.0` 会对传入方差作内部缩放，参见来源说明。
+Each result object's `.x` field contains the reconstruction. The two-dimensional single-scene calls above return `[N1, N2]`. GGAMP retains a batch dimension when the batch size is greater than one and removes it when the batch size is one. Its noise-variance argument accepts only a scalar or a single-element tensor. Posterior field names and shapes are not necessarily identical across methods. GGAMP does not implement `mean_remove=True`; use `False`. Its default `noise_scale=3.0` internally scales the supplied variance; see [Sources and citations](SOURCES.md).
 
-## 目录
+## Typical RTX 4090 example
+
+The [typical RTX 4090 example](RTX4090_EXAMPLE.md) is available as a [downloadable archive](rtx4090_typical_example.zip). It contains saved results and a plotting workflow for regenerating the GPU rows of Table 2 and Fig. 3. The archived setting uses seed 200, a 10 dB SNR, a 40 × 32 reconstruction grid, and 20 × 16 observations.
+
+This example regenerates reported results from saved records; it does not rerun the original solver comparison or establish independent reproduction of its timings. The original RTX 4090 runner and input arrays are not included in the available archive. See the [example guide](RTX4090_EXAMPLE.md) for extraction instructions; the archive contains a detailed README, protocol, and provenance record. Its plotting requirements are separate from the solver installation above.
+
+## Repository layout
 
 ```text
-torch_sbl/                  # 本项目核心、Fourier 算子、Triton、CUDA Graph
-torch_sbl_fastest_stable/   # FBME-Fast / FBME-Stable 配置入口
-literature_reproduction/   # 独立文献实现
-pyproject.toml             # 安装与依赖
+torch_sbl/                  # Core solvers, Fourier operators, Triton, CUDA Graph
+torch_sbl_fastest_stable/   # FBME-Fast and FBME-Stable configuration wrappers
+literature_reproduction/   # Independent literature implementations
+RTX4090_EXAMPLE.md         # Guide to the archived RTX 4090 example
+rtx4090_typical_example.zip # Archived Table 2 GPU rows / Fig. 3 materials
+rtx4090_typical_example_SHA256.txt # Archive integrity checksum
+pyproject.toml             # Package installation and dependencies
 README.md
-来源与引用.md
-授权说明.md
+SOURCES.md                 # Method provenance and citations
+NOTICE.md                  # Licensing status and third-party dependencies
 .gitignore
 ```
 
-这是一份代码发布目录，可将目录内的文件放到 GitHub 仓库根目录。发布前由权利人确定开源许可证；本目录没有擅自授予 MIT、Apache 或其他许可证，见[授权说明](授权说明.md)。
+This directory is prepared for publication as a GitHub repository. No MIT, Apache, or other open-source license has been granted by this release. The rights holder must determine the licensing terms; see [Licensing notice](NOTICE.md).

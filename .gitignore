@@ -21,7 +21,7 @@ dist/
 .triton/
 .cache/
 
-# Keep this repository code-only
+# Exclude local data and experiment artifacts
 data/
 datasets/
 results/
@@ -54,6 +54,9 @@ run_*suite.py
 *.log
 *.pdf
 *.zip
+
+# Publish only the explicitly selected archived example package
+!/rtx4090_typical_example.zip
 
 # OS metadata
 .DS_Store
