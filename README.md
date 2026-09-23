@@ -28,7 +28,7 @@ Python 3.10 or later is required. Dependency ranges follow the project's PyTorch
 Clone the repository:
 
 ```bash
-git clone https://github.com/shabomarui-hub/FBME-SBL.git
+git clone https://github.com/ybb3663/FBME-SBL.git
 cd FBME-SBL
 ```
 
